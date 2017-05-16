@@ -21,12 +21,8 @@
 #include "imgfeatures.h"
 #include "utils.h"
 
-#include "stdio.h"
-
 #include <cxcore.h>
 #include <cv.h>
-#include <highgui.h>
-#include "stdbool.h"
 
 /************************* Local Function Prototypes *************************/
 
@@ -67,10 +63,8 @@ static void normalize_descr( struct feature* );
 static int feature_cmp( void*, void*, void* );
 static void release_descr_hist( double****, int );
 static void release_pyr( IplImage****, int, int );
-static void PrinToFile(int vector_data);
-void Debug_Print(char *print_s);
-void Debug_PrinToFile(char *filename, char *print_s);
-bool SavePicPixel(const char* filename,IplImage *pic);//保存图片的像素信息到文本中
+
+
 /*********************** Functions prototyped in sift.h **********************/
 
 
@@ -86,7 +80,6 @@ bool SavePicPixel(const char* filename,IplImage *pic);//保存图片的像素信
 */
 int sift_features( IplImage* img, struct feature** feat )
 {
-    printf("[sift_features] at line 83\n");
   return _sift_features( img, feat, SIFT_INTVLS, SIFT_SIGMA, SIFT_CONTR_THR,
 			 SIFT_CURV_THR, SIFT_IMG_DBL, SIFT_DESCR_WIDTH,
 			 SIFT_DESCR_HIST_BINS );
@@ -137,61 +130,18 @@ int _sift_features( IplImage* img, struct feature** feat, int intvls,
 
   /* build scale space pyramid; smallest dimension of top level is ~4 pixels */
   init_img = create_init_img( img, img_dbl, sigma );
-    SavePicPixel("init_imgmes/init_img.txt",init_img);
-  /*add by simon*/
-/*  cvNamedWindow( "gass_smooth", 1);
-  cvShowImage( "gass_smooth", init_img );
-  cvWaitKey( 0 );*/
-  /*add by simon*/
-  printf("inti_w:%d,inti_h:%d\n",init_img->width,init_img->height);
-    printf("octvs_d:%lf\n",log( MIN( init_img->width, init_img->height ) ) / log(2));
   octvs = log( MIN( init_img->width, init_img->height ) ) / log(2) - 2;
-  printf("o:%d i:%d\n",octvs,intvls);
   gauss_pyr = build_gauss_pyr( init_img, octvs, intvls, sigma );
-
-  /*add by simon*/
-  //SavePicPixel("gau_0_0.txt",gauss_pyr[0][0]);
-  //SavePicPixel("gau_0_1.txt",gauss_pyr[0][1]);
-  /*add by simon*/
   dog_pyr = build_dog_pyr( gauss_pyr, octvs, intvls );
-
-  /*add by simon*/
-  //IplImage *dog_pyr_8u = cvCreateImage(cvGetSize(dog_pyr[0][0]),IPL_DEPTH_8U,1);
-  //cvConvertScale(dog_pyr[0][1],dog_pyr_8u,255,0);
-  //SavePicPixel("dog_pyr_8u.txt",dog_pyr[0][0]);
-  /*add by simon*/
   
   storage = cvCreateMemStorage( 0 );
   features = scale_space_extrema( dog_pyr, octvs, intvls, contr_thr,
 				  curv_thr, storage );
-
-  printf("before calc,feature:%d\n",features->total);
   calc_feature_scales( features, sigma, intvls );
   if( img_dbl )
-    adjust_for_img_dbl( features );//调整关键点坐标，降为1/2
-
-
+    adjust_for_img_dbl( features );
   calc_feature_oris( features, gauss_pyr );
-
-  /*add by simon*/
-  char print[50];
-  struct feature *feat_2;
-  memset(print, 0, 50);
-  feat_2 = CV_GET_SEQ_ELEM(struct feature, features, 0);
-  sprintf(print, "[after add features:]i:%d, ori:%lf", 0, feat_2->ori);
-  Debug_Print(print);
-  //Debug_PrinToFile("ori.txt",print);
-  /*add by simon*/
-
   compute_descriptors( features, gauss_pyr, descr_width, descr_hist_bins );
-
-  /*add by simon*/
-  n = features->total;
-  struct feature *print_feats;
-  print_feats = calloc(n,sizeof(struct feature));
-  cvCvtSeqToArray( features, print_feats, CV_WHOLE_SEQ);
-  export_features( "sift_features.txt", print_feats, n);
-  /*add by simon*/
 
   /* sort features by decreasing scale and move from CvSeq to array */
   cvSeqSort( features, (CvCmpFunc)feature_cmp, NULL );
@@ -227,25 +177,13 @@ static IplImage* create_init_img( IplImage* img, int img_dbl, double sigma )
   IplImage* gray, * dbl;
   double sig_diff;
 
-  //SavePicPixel("gray_8.txt",img);//add by simon
   gray = convert_to_gray32( img );
-
-  SavePicPixel("init_imgmes/scale_before.txt",gray);
-  //SavePicPixel("gray_32.txt",gray);//add by simon
   if( img_dbl )
     {
       sig_diff = sqrt( sigma * sigma - SIFT_INIT_SIGMA * SIFT_INIT_SIGMA * 4 );
       dbl = cvCreateImage( cvSize( img->width*2, img->height*2 ),
 			   IPL_DEPTH_32F, 1 );
       cvResize( gray, dbl, CV_INTER_CUBIC );
-     // cvResize( gray, dbl, CV_INTER_LINEAR );
-      //dbl = cvClone(gray);
-        SavePicPixel("init_imgmes/smooth_before.txt",dbl);
-      /*add by simon*/
-      cvNamedWindow( "2 scala", 1);
-      cvShowImage( "2 scala", dbl );
-      cvWaitKey( 0 );
-      /*add by simon*/
       cvSmooth( dbl, dbl, CV_GAUSSIAN, 0, 0, sig_diff, sig_diff );
       cvReleaseImage( &gray );
       return dbl;
@@ -301,15 +239,10 @@ static IplImage* convert_to_gray32( IplImage* img )
 static IplImage*** build_gauss_pyr( IplImage* base, int octvs,
 			     int intvls, double sigma )
 {
-  char titleName[10];
-
   IplImage*** gauss_pyr;
   const int _intvls = intvls;
   double sig[_intvls+3], sig_total, sig_prev, k;
   int i, o;
-
-  char tileName[30];
-   //SavePicPixel("base.txt",base);//add by simon
 
   gauss_pyr = calloc( octvs, sizeof( IplImage** ) );
   for( i = 0; i < octvs; i++ )
@@ -324,7 +257,7 @@ static IplImage*** build_gauss_pyr( IplImage* base, int octvs,
     the actual sigma of level i. Keeping track of incremental
     sigmas vs. total sigmas keeps the gaussian kernel small.
   */
-  k = pow( 2.0, 1.0 / intvls );//
+  k = pow( 2.0, 1.0 / intvls );
   sig[0] = sigma;
   sig[1] = sigma * sqrt( k*k- 1 );
   for (i = 2; i < intvls + 3; i++)
@@ -338,7 +271,7 @@ static IplImage*** build_gauss_pyr( IplImage* base, int octvs,
 
 	/* base of new octvave is halved image from end of previous octave */
 	else if( i == 0 )
-      gauss_pyr[o][i] = downsample( gauss_pyr[o-1][intvls] );//the last third gaussian picture
+	  gauss_pyr[o][i] = downsample( gauss_pyr[o-1][intvls] );
 	  
 	/* blur the current octave's last image to create the next one */
 	else
@@ -347,139 +280,11 @@ static IplImage*** build_gauss_pyr( IplImage* base, int octvs,
 					     IPL_DEPTH_32F, 1 );
 	    cvSmooth( gauss_pyr[o][i-1], gauss_pyr[o][i],
 		      CV_GAUSSIAN, 0, 0, sig[i], sig[i] );
-        sprintf(tileName,"gaumes/gau_%d_%d",o,i);
-        //printf("o:%d,i:%d,sig[%d]:%lf\n",o,i,i,sig[i]);
-        SavePicPixel(tileName,gauss_pyr[o][i]);
 	  }
-    /*add by simon*/
- /*   sprintf(titleName,"o:%d i%d",o,i);
-    cvNamedWindow( titleName, 1);
-    cvShowImage( titleName, gauss_pyr[o][i] );
-    cvWaitKey( 0 );*/
-    /*add by simon*/
       }
 
   return gauss_pyr;
 }
-
-/*add by simon*/
-bool SavePicPixel(const char* filename,IplImage *pic)
-{
-    FILE *fd;
-    char wbuffer[100];
-    char line[100];
-    fd = fopen(filename,"wt");
-    if(fd == NULL)
-    {
-        sprintf(line,"file:%s,function:%s,at:%d",__FILE__, __FUNCTION__,__LINE__);
-        perror(line);
-    }
-    int step = pic->widthStep/(pic->depth/8);
-    int r,c,num;
-
-    if(pic->depth == IPL_DEPTH_8U)
-    {
-        uchar *data = (uchar *)pic->imageData;
-        for(r = 0,num = 0;r<pic->height;r++)
-        {
-            for(c = 0;c<pic->width;c++,num++)
-            {
-                //sprintf(wbuffer,"%hhx ",pic->imageData[num]);
-                sprintf(wbuffer,"%u ",data[r*step+c]);
-                fprintf(fd,wbuffer);
-            }
-            fprintf(fd,"\n");
-        }
-    }
-    else if(pic->depth == IPL_DEPTH_32F)
-    {
-        float *data = (float *)pic->imageData;
-        for(r = 0,num = 0;r<pic->height;r++)
-        {
-            sprintf(wbuffer,"row:[%d]",r);
-            fprintf(fd,wbuffer);
-            fprintf(fd,"\n");
-            for(c = 0;c<pic->width;c++,num++)
-            {
-                //sprintf(wbuffer,"%hhx ",pic->imageData[num]);
-                sprintf(wbuffer,"%d:%.3lf\n",c,data[r*step+c]);
-                fprintf(fd,wbuffer);
-            }
-            fprintf(fd,"\n");
-        }
-    }
-    else
-    {
-        sprintf(wbuffer,"not support depth kind!\n");
-        fprintf(fd,wbuffer);
-    }
-
-    fclose(fd);
-
-    return true;
-}
-/*add by simon*/
-
-/*add by simon*/
-bool Savedog_detailPixel(const char* filename,IplImage *dog,IplImage *src1,IplImage *src2)
-{
-    FILE *fd;
-    char wbuffer[100];
-    fd = fopen(filename,"wt");
-    int step = dog->widthStep/(dog->depth/8);
-    int r,c,num;
-
-    if(dog->depth == IPL_DEPTH_8U)
-    {
-        uchar *data = (uchar *)dog->imageData;
-        uchar *src1data = (uchar *)src1->imageData;
-        uchar *src2data = (uchar *)src2->imageData;
-        for(r = 0,num = 0;r<dog->height;r++)
-        {
-            sprintf(wbuffer,"row:[%d]",r);
-            fprintf(fd,wbuffer);
-            fprintf(fd,"\n");
-            for(c = 0;c<dog->width;c++,num++)
-            {
-                //sprintf(wbuffer,"%hhx ",pic->imageData[num]);
-                //sprintf(wbuffer,"%u ",data[r*step+c]);
-                sprintf(wbuffer,"%d:(%u - %u)%u\n",c,src1data[r*step+c],src2data[r*step+c],data[r*step+c]);
-                fprintf(fd,wbuffer);
-            }
-            fprintf(fd,"\n");
-        }
-    }
-    else if(dog->depth == IPL_DEPTH_32F)
-    {
-        float *data = (float *)dog->imageData;
-        float *src1data = (float *)src1->imageData;
-        float *src2data = (float *)src2->imageData;
-        for(r = 0,num = 0;r<dog->height;r++)
-        {
-            sprintf(wbuffer,"row:[%d]",r);
-            fprintf(fd,wbuffer);
-            fprintf(fd,"\n");
-            for(c = 0;c<dog->width;c++,num++)
-            {
-                //sprintf(wbuffer,"%hhx ",pic->imageData[num]);
-                sprintf(wbuffer,"%d:(%.3lf - %.3lf)%.3lf\n",c,src1data[r*step+c],src2data[r*step+c],data[r*step+c]);
-                fprintf(fd,wbuffer);
-            }
-            fprintf(fd,"\n");
-        }
-    }
-    else
-    {
-        sprintf(wbuffer,"not support depth kind!\n");
-        fprintf(fd,wbuffer);
-    }
-
-    fclose(fd);
-
-    return true;
-}
-/*add by simon*/
-
 
 
 
@@ -518,9 +323,6 @@ static IplImage*** build_dog_pyr( IplImage*** gauss_pyr, int octvs, int intvls )
   IplImage*** dog_pyr;
   int i, o;
 
-  char tileName[30];
-  char wbuffer[50];
-
   dog_pyr = calloc( octvs, sizeof( IplImage** ) );
   for( i = 0; i < octvs; i++ )
     dog_pyr[i] = calloc( intvls + 2, sizeof(IplImage*) );
@@ -530,33 +332,7 @@ static IplImage*** build_dog_pyr( IplImage*** gauss_pyr, int octvs, int intvls )
       {
 	dog_pyr[o][i] = cvCreateImage( cvGetSize(gauss_pyr[o][i]),
 				       IPL_DEPTH_32F, 1 );
-    cvSub( gauss_pyr[o][i+1], gauss_pyr[o][i], dog_pyr[o][i], NULL );
-
-    /*add by simon*/
-    /*sprintf(tileName,"o:%d i%d",o,i);
-    cvNamedWindow( tileName, 1);
-    cvShowImage( tileName, dog_pyr[o][i] );
-    cvWaitKey( 0 );*/
-    /*add by simon*/
-
-    /*add by simon*/
-    /*  if(i == 2 &&o == 0)
-      {
-          sprintf(tileName,"dog_%d_%d",o,i);
-          Savedog_detailPixel(tileName,dog_pyr[o][i],gauss_pyr[o][i+1],gauss_pyr[o][i]);
-
-          IplImage *dog_pyr_8u = cvCreateImage(cvGetSize(dog_pyr[o][i]),IPL_DEPTH_8U,1);
-          IplImage *src1_8u = cvCreateImage(cvGetSize(dog_pyr[o][i]),IPL_DEPTH_8U,1);
-          IplImage *src2_8u = cvCreateImage(cvGetSize(dog_pyr[o][i]),IPL_DEPTH_8U,1);
-          cvConvertScale(dog_pyr[o][i],dog_pyr_8u,255,0);
-          cvConvertScale(gauss_pyr[o][i+1],src1_8u,255,0);
-          cvConvertScale(gauss_pyr[o][i],src2_8u,255,0);
-          sprintf(tileName,"dog_%d_%d_u",o,i);
-          Savedog_detailPixel(tileName,dog_pyr_8u,src1_8u,src2_8u);
-      }*/
-    /*add by simon*/
-    sprintf(tileName,"dogmes/dog_%d_%d",o,i);
-    SavePicPixel(tileName,dog_pyr[o][i]);
+	cvSub( gauss_pyr[o][i+1], gauss_pyr[o][i], dog_pyr[o][i], NULL );
       }
 
   return dog_pyr;
@@ -584,16 +360,10 @@ static CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
 {
   CvSeq* features;
   double prelim_contr_thr = 0.5 * contr_thr / intvls;
-
-  /*add by simon*/
-  printf("prelim_contr_thr:%lf\n",prelim_contr_thr);
-  /*add by simon*/
   struct feature* feat;
   struct detection_data* ddata;
   int o, i, r, c;
 
-  int count_is_stream = 0;
-    int more_pre_count = 0;
   features = cvCreateSeq( 0, sizeof(CvSeq), sizeof(struct feature), storage );
   for( o = 0; o < octvs; o++ )
     for( i = 1; i <= intvls; i++ )
@@ -601,35 +371,23 @@ static CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
 	for(c = SIFT_IMG_BORDER; c < dog_pyr[o][0]->width-SIFT_IMG_BORDER; c++)
 	  /* perform preliminary check on contrast */
 	  if( ABS( pixval32f( dog_pyr[o][i], r, c ) ) > prelim_contr_thr )
-        {
-          more_pre_count++;
-          if( is_extremum( dog_pyr, o, i, r, c ) )//3.1 in lowe ,local extrema detection
+	    if( is_extremum( dog_pyr, o, i, r, c ) )
 	      {
-
-            /*add by simon*/
-            count_is_stream++;
-            //printf("(%d,%d)%lf,%lf\n",r,c,feat->y/2,feat->x/2);
-            printf("%d:(%d,%d)\n",count_is_stream,r,c);
-            /*add by simon*/
-        feat = interp_extremum(dog_pyr, o, i, r, c, intvls, contr_thr);//Accurate keypoint location
+		feat = interp_extremum(dog_pyr, o, i, r, c, intvls, contr_thr);
 		if( feat )
 		  {
-            ddata = feat_detection_data( feat );//return the detection data
+		    ddata = feat_detection_data( feat );
 		    if( ! is_too_edge_like( dog_pyr[ddata->octv][ddata->intvl],
-                        ddata->r, ddata->c, curv_thr ) )//eliminating edges responses
+					    ddata->r, ddata->c, curv_thr ) )
 		      {
 			cvSeqPush( features, feat );
-
 		      }
 		    else
 		      free( ddata );
 		    free( feat );
 		  }
 	      }
-      }
-  printf("pre_thr:%d\n",prelim_contr_thr);
-  printf("is_stream count %d\n",count_is_stream);
-  printf("more than pre %d\n",more_pre_count);
+  
   return features;
 }
 
@@ -1051,34 +809,13 @@ static void calc_feature_oris( CvSeq* features, IplImage*** gauss_pyr )
 		       SIFT_ORI_SIG_FCTR * ddata->scl_octv );
       for( j = 0; j < SIFT_ORI_SMOOTH_PASSES; j++ )
 	smooth_ori_hist( hist, SIFT_ORI_HIST_BINS );
-      omax = dominant_ori( hist, SIFT_ORI_HIST_BINS );//find the max
-
-      /*add by simon*/
-    //  char print[50];
-   //   sprintf(print, "i:%d, ori:%lf", i, feat->ori);
-   //   Debug_Print(print);
-      /*add by simon*/
-
+      omax = dominant_ori( hist, SIFT_ORI_HIST_BINS );
       add_good_ori_features( features, hist, SIFT_ORI_HIST_BINS,
 			     omax * SIFT_ORI_PEAK_RATIO, feat );
-
       free( ddata );
       free( feat );
       free( hist );
     }
-
-  /*add by simon*/
-  for(i = 0;i < features->total;i++)
-  {
-      char print[50];
-      struct feature *feat_2;
-      memset(print, 0, 50);
-      feat_2 = CV_GET_SEQ_ELEM(struct feature, features, i);
-      sprintf(print, "[after add features:]i:%d, ori:%lf", i, feat_2->ori);
-      //Debug_Print(print);
-      Debug_PrinToFile("ori.txt",print);
-  }
-  /*add by simon*/
 }
 
 
@@ -1289,7 +1026,7 @@ static void compute_descriptors( CvSeq* features, IplImage*** gauss_pyr, int d,
       feat = CV_GET_SEQ_ELEM( struct feature, features, i );
       ddata = feat_detection_data( feat );
       hist = descr_hist( gauss_pyr[ddata->octv][ddata->intvl], ddata->r,
-             ddata->c, feat->ori, ddata->scl_octv, d, n );//calculate the
+			 ddata->c, feat->ori, ddata->scl_octv, d, n );
       hist_to_descr( hist, d, n, feat );
       release_descr_hist( &hist, d );
     }
@@ -1456,30 +1193,8 @@ static void hist_to_descr( double*** hist, int d, int n, struct feature* feat )
       int_val = SIFT_INT_DESCR_FCTR * feat->descr[i];
       feat->descr[i] = MIN( 255, int_val );
     }
-
-/*    for(i = 0;i < k;i++)
-        PrinToFile(feat->descr[i]);
-    FILE *fp = fopen("feature.txt","at+");
-    fprintf(fp,"\n");
-    fclose(fp);*/
 }
 
-/**
- * @brief PrinToFile
- */
-void PrinToFile(int vector_data)
-{
-    FILE *fp = fopen("feature.txt","at+");
-    if(fp == NULL)
-    {
-        return -1;
-    }
-    else
-    {
-        fprintf(fp,"%d ",vector_data);
-    }
-    fclose(fp);
-}
 
 
 /*
@@ -1568,23 +1283,4 @@ static void release_pyr( IplImage**** pyr, int octvs, int n )
     }
   free( *pyr );
   *pyr = NULL;
-}
-
-void Debug_Print(char *print_s)
-{
-    printf("[file:%s] [line:%ld] mes:%s\n", __FILE__ , __LINE__, print_s);
-}
-
-void Debug_PrinToFile(char *filename, char *print_s)
-{
-    FILE *fp = fopen(filename,"at+");
-    if(fp == NULL)
-    {
-        return -1;
-    }
-    else
-    {
-        fprintf(fp,"%s\n",print_s);
-    }
-    fclose(fp);
 }

@@ -18,9 +18,11 @@
 #include "sift.h"
 #include "imgfeatures.h"
 #include "utils.h"
+
+#include <highgui.h>
+
 #include <unistd.h>
 #include <sys/time.h>
-//using namespace std;
 
 #define OPTIONS ":o:m:i:s:c:r:n:b:dxh"
 
@@ -42,89 +44,131 @@ int curv_thr = SIFT_CURV_THR;
 int img_dbl = SIFT_IMG_DBL;
 int descr_width = SIFT_DESCR_WIDTH;
 int descr_hist_bins = SIFT_DESCR_HIST_BINS;
-int display = 1;
+int display = 0;
+
+void replace_char(char *src,char match,char replace){
+    int str_len = strlen(src);
+    int i = 0;
+
+    char *pos = src;
+    while((*pos) != '\0'){
+        if((*pos) == match)
+            *pos = replace;
+
+        pos++;
+    }
+}
 
 
 /********************************** Main *************************************/
 
 int main( int argc, char** argv )
 {
-  IplImage* img;
+  struct timeval tstart,tend;
+  gettimeofday(&tstart,NULL);
 
+  IplImage* img;
   struct feature* features;
   int n = 0;
 
-  arg_parse( argc, argv );
+  //arg_parse( argc, argv );
 
-  struct timeval t_start;
-    struct timeval t_end;
+  char read_buf[1024];
 
-    gettimeofday(&t_start,NULL);
-  fprintf( stderr, "Finding SIFT features...\n" );
-  img = cvLoadImage( img_file_name, 1 );
-    printf("%d\n",img->depth);
-  /*add by simon*/
-    IplImage* img_gray = cvCreateImage(cvGetSize(img),8,1);
-    cvCvtColor(img,img_gray,6);
-  cvNamedWindow( "gray", 1);
-  cvShowImage( "gray", img_gray );
-  cvWaitKey( 0 );
-  /*add by simon*/
+  FILE *fp = fopen("hello_world.txt","r+");
+  if(fp == NULL){
+      printf("open filename_list failed\n");
+      exit(-1);
+  }
 
-  if( ! img )
-    fatal_error( "unable to load image from %s", img_file_name );
-  n = _sift_features( img_gray, &features, intvls, sigma, contr_thr, curv_thr,
-		      img_dbl, descr_width, descr_hist_bins );
-  fprintf( stderr, "Found %d features.\n", n );
-  
-    gettimeofday(&t_end,NULL);
-    long use_time = 1000*(t_end.tv_sec - t_start.tv_sec) + (t_end.tv_usec - t_start.tv_usec)/1000;
-    printf("feature extract use time:%ld\n",use_time);
-  if( display )
-    {
-      draw_features( img_gray, features, n );
-      int i = 0;
-      for(i =n-1;i>0;i--)
-      {
-          //printf("%lf,%lf\n",features[i].y,features[i].x);
+  memset(read_buf,0,1024);
+  fgets(read_buf,sizeof(read_buf)-1,fp);
+  printf("read:%s",read_buf);
+//  fclose(fp);
+
+  int line_num = 0;
+  sscanf(read_buf,"%d",&line_num);
+  printf("line num:%d\n",line_num);
+
+  char** filename_list = (char **)malloc(sizeof(char *) * line_num);
+
+  int i = 0;
+  for(i = 0;i<line_num;i++)
+      filename_list[i] = (char *) malloc(sizeof(char) * 1024);
+
+  for(i = 0;i<line_num;i++){
+      memset(filename_list[i],0,sizeof(1024));
+      fgets(filename_list[i],1024,fp);
+   //   printf("%s\n",filename_list[i]);
+  }
+
+  char temp_buf[1024];
+
+  for(i = 0;i<line_num;i++){
+      memset(temp_buf,0,sizeof(temp_buf));
+      sscanf(filename_list[i],"%s",temp_buf);
+ //    printf("i:%d,%s\n",i,temp_buf);
+
+      fprintf( stderr, "Finding SIFT features...\n" );
+      img = cvLoadImage(temp_buf, 1 );
+      if( ! img )
+        fatal_error( "unable to load image from %s", img_file_name );
+      n = _sift_features( img, &features, intvls, sigma, contr_thr, curv_thr,
+                  img_dbl, descr_width, descr_hist_bins );
+      fprintf( stderr, "Found %d features.\n", n );
+
+      if( display )
+        {
+          draw_features( img, features, n );
+          display_big_img( img, temp_buf );
+          cvWaitKey( 0 );
+        }
+
+      out_file_name = temp_buf;
+
+
+      if( out_file_name != NULL ){
+          char export_dirname[10];
+          char export_filename[1024+10];
+
+          memset(export_filename,0,1024+10);
+          memset(export_dirname,0,10);
+
+          strcpy(export_dirname,"export/");
+          strcat(export_filename,export_dirname);
+
+          replace_char(out_file_name,'/','_');
+          strcat(export_filename,out_file_name);
+          strcat(export_filename,".txt");
+
+          export_features( export_filename, features, n );
       }
 
-      int k = 0;
-      int h = 0;
-      int maxid = 0;
-      int max_y = features[0].y;
-      struct feature temp_f;
-      temp_f.y = features[0].y;
-      temp_f.x = features[0].x;
 
-      for(h = 0;h<n;h++)
-      {
-          maxid = 0;
-          for(k = 0;k<(n-h);k++)
-          {
-              if(features[maxid].y < features[k].y)
-              {
-                maxid = k;
-              }
-          }
-          temp_f = features[maxid];
+      if( out_img_name != NULL )
+        cvSaveImage( out_img_name, img, NULL );
+  }
+  gettimeofday(&tend,NULL);
+  long use_time = 1000*(tend.tv_sec - tstart.tv_sec) + (tend.tv_usec - tstart.tv_usec)/1000;
 
-          features[maxid] = features[k-1];
+  char result_mes[200];
+  memset(result_mes,0,200);
+  sprintf(result_mes,"[%s]extract %d pic,use time:%ld ms\n",argv[1],line_num,use_time);
+  printf("%s",result_mes);
 
-          features[k-1] = temp_f;
+  char task_mes[200];
+  memset(task_mes,0,200);
+  strcat(task_mes,"result_mes/");
+  strcat(task_mes,argv[1]);
 
-          printf("%.1lf,%.1lf\n",features[n-h-1].x,features[n-h-1].y);
-      }
+  printf("task_mes:%s\n",task_mes);
 
-      display_big_img( img_gray, img_file_name );
-      cvWaitKey( 0 );
-    }
-    printf("found:%d\n",n);
-  if( out_file_name != NULL )
-    export_features( out_file_name, features, n );
+  FILE *fp_result = fopen(task_mes,"w+");
+  fputs(result_mes,fp_result);
 
-  if( out_img_name != NULL )
-    cvSaveImage( out_img_name, img, NULL );
+  fclose(fp_result);
+  fclose(fp);
+  free(filename_list);
   return 0;
 }
 

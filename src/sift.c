@@ -137,13 +137,14 @@ int _sift_features( IplImage* img, struct feature** feat, int intvls,
 
   /* build scale space pyramid; smallest dimension of top level is ~4 pixels */
   init_img = create_init_img( img, img_dbl, sigma );
-
+    SavePicPixel("init_imgmes/init_img.txt",init_img);
   /*add by simon*/
 /*  cvNamedWindow( "gass_smooth", 1);
   cvShowImage( "gass_smooth", init_img );
   cvWaitKey( 0 );*/
   /*add by simon*/
-
+  printf("inti_w:%d,inti_h:%d\n",init_img->width,init_img->height);
+    printf("octvs_d:%lf\n",log( MIN( init_img->width, init_img->height ) ) / log(2));
   octvs = log( MIN( init_img->width, init_img->height ) ) / log(2) - 2;
   printf("o:%d i:%d\n",octvs,intvls);
   gauss_pyr = build_gauss_pyr( init_img, octvs, intvls, sigma );
@@ -164,9 +165,12 @@ int _sift_features( IplImage* img, struct feature** feat, int intvls,
   features = scale_space_extrema( dog_pyr, octvs, intvls, contr_thr,
 				  curv_thr, storage );
 
+  printf("before calc,feature:%d\n",features->total);
   calc_feature_scales( features, sigma, intvls );
   if( img_dbl )
     adjust_for_img_dbl( features );//调整关键点坐标，降为1/2
+
+
   calc_feature_oris( features, gauss_pyr );
 
   /*add by simon*/
@@ -225,6 +229,8 @@ static IplImage* create_init_img( IplImage* img, int img_dbl, double sigma )
 
   //SavePicPixel("gray_8.txt",img);//add by simon
   gray = convert_to_gray32( img );
+
+  SavePicPixel("init_imgmes/scale_before.txt",gray);
   //SavePicPixel("gray_32.txt",gray);//add by simon
   if( img_dbl )
     {
@@ -232,7 +238,9 @@ static IplImage* create_init_img( IplImage* img, int img_dbl, double sigma )
       dbl = cvCreateImage( cvSize( img->width*2, img->height*2 ),
 			   IPL_DEPTH_32F, 1 );
       cvResize( gray, dbl, CV_INTER_CUBIC );
-
+     // cvResize( gray, dbl, CV_INTER_LINEAR );
+      //dbl = cvClone(gray);
+        SavePicPixel("init_imgmes/smooth_before.txt",dbl);
       /*add by simon*/
       cvNamedWindow( "2 scala", 1);
       cvShowImage( "2 scala", dbl );
@@ -300,6 +308,7 @@ static IplImage*** build_gauss_pyr( IplImage* base, int octvs,
   double sig[_intvls+3], sig_total, sig_prev, k;
   int i, o;
 
+  char tileName[30];
    //SavePicPixel("base.txt",base);//add by simon
 
   gauss_pyr = calloc( octvs, sizeof( IplImage** ) );
@@ -338,6 +347,9 @@ static IplImage*** build_gauss_pyr( IplImage* base, int octvs,
 					     IPL_DEPTH_32F, 1 );
 	    cvSmooth( gauss_pyr[o][i-1], gauss_pyr[o][i],
 		      CV_GAUSSIAN, 0, 0, sig[i], sig[i] );
+        sprintf(tileName,"gaumes/gau_%d_%d",o,i);
+        //printf("o:%d,i:%d,sig[%d]:%lf\n",o,i,i,sig[i]);
+        SavePicPixel(tileName,gauss_pyr[o][i]);
 	  }
     /*add by simon*/
  /*   sprintf(titleName,"o:%d i%d",o,i);
@@ -521,10 +533,10 @@ static IplImage*** build_dog_pyr( IplImage*** gauss_pyr, int octvs, int intvls )
     cvSub( gauss_pyr[o][i+1], gauss_pyr[o][i], dog_pyr[o][i], NULL );
 
     /*add by simon*/
-    sprintf(tileName,"o:%d i%d",o,i);
+    /*sprintf(tileName,"o:%d i%d",o,i);
     cvNamedWindow( tileName, 1);
     cvShowImage( tileName, dog_pyr[o][i] );
-    cvWaitKey( 0 );
+    cvWaitKey( 0 );*/
     /*add by simon*/
 
     /*add by simon*/
@@ -572,10 +584,16 @@ static CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
 {
   CvSeq* features;
   double prelim_contr_thr = 0.5 * contr_thr / intvls;
+
+  /*add by simon*/
+  printf("prelim_contr_thr:%lf\n",prelim_contr_thr);
+  /*add by simon*/
   struct feature* feat;
   struct detection_data* ddata;
   int o, i, r, c;
 
+  int count_is_stream = 0;
+    int more_pre_count = 0;
   features = cvCreateSeq( 0, sizeof(CvSeq), sizeof(struct feature), storage );
   for( o = 0; o < octvs; o++ )
     for( i = 1; i <= intvls; i++ )
@@ -583,8 +601,16 @@ static CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
 	for(c = SIFT_IMG_BORDER; c < dog_pyr[o][0]->width-SIFT_IMG_BORDER; c++)
 	  /* perform preliminary check on contrast */
 	  if( ABS( pixval32f( dog_pyr[o][i], r, c ) ) > prelim_contr_thr )
-        if( is_extremum( dog_pyr, o, i, r, c ) )//3.1 in lowe ,local extrema detection
+        {
+          more_pre_count++;
+          if( is_extremum( dog_pyr, o, i, r, c ) )//3.1 in lowe ,local extrema detection
 	      {
+
+            /*add by simon*/
+            count_is_stream++;
+            //printf("(%d,%d)%lf,%lf\n",r,c,feat->y/2,feat->x/2);
+            printf("%d:(%d,%d)\n",count_is_stream,r,c);
+            /*add by simon*/
         feat = interp_extremum(dog_pyr, o, i, r, c, intvls, contr_thr);//Accurate keypoint location
 		if( feat )
 		  {
@@ -593,14 +619,17 @@ static CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
                         ddata->r, ddata->c, curv_thr ) )//eliminating edges responses
 		      {
 			cvSeqPush( features, feat );
-         //   printf("%lf,%lf\n",feat->y,feat->x);
+
 		      }
 		    else
 		      free( ddata );
 		    free( feat );
 		  }
 	      }
-  
+      }
+  printf("pre_thr:%d\n",prelim_contr_thr);
+  printf("is_stream count %d\n",count_is_stream);
+  printf("more than pre %d\n",more_pre_count);
   return features;
 }
 

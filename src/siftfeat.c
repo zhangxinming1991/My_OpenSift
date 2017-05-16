@@ -19,7 +19,7 @@
 #include "imgfeatures.h"
 #include "utils.h"
 #include <unistd.h>
-
+#include <sys/time.h>
 //using namespace std;
 
 #define OPTIONS ":o:m:i:s:c:r:n:b:dxh"
@@ -56,6 +56,10 @@ int main( int argc, char** argv )
 
   arg_parse( argc, argv );
 
+  struct timeval t_start;
+    struct timeval t_end;
+
+    gettimeofday(&t_start,NULL);
   fprintf( stderr, "Finding SIFT features...\n" );
   img = cvLoadImage( img_file_name, 1 );
     printf("%d\n",img->depth);
@@ -73,18 +77,49 @@ int main( int argc, char** argv )
 		      img_dbl, descr_width, descr_hist_bins );
   fprintf( stderr, "Found %d features.\n", n );
   
+    gettimeofday(&t_end,NULL);
+    long use_time = 1000*(t_end.tv_sec - t_start.tv_sec) + (t_end.tv_usec - t_start.tv_usec)/1000;
+    printf("feature extract use time:%ld\n",use_time);
   if( display )
     {
       draw_features( img_gray, features, n );
       int i = 0;
       for(i =n-1;i>0;i--)
       {
-          printf("%lf,%lf\n",features[i].y,features[i].x);
+          //printf("%lf,%lf\n",features[i].y,features[i].x);
       }
+
+      int k = 0;
+      int h = 0;
+      int maxid = 0;
+      int max_y = features[0].y;
+      struct feature temp_f;
+      temp_f.y = features[0].y;
+      temp_f.x = features[0].x;
+
+      for(h = 0;h<n;h++)
+      {
+          maxid = 0;
+          for(k = 0;k<(n-h);k++)
+          {
+              if(features[maxid].y < features[k].y)
+              {
+                maxid = k;
+              }
+          }
+          temp_f = features[maxid];
+
+          features[maxid] = features[k-1];
+
+          features[k-1] = temp_f;
+
+          printf("%.1lf,%.1lf\n",features[n-h-1].x,features[n-h-1].y);
+      }
+
       display_big_img( img_gray, img_file_name );
       cvWaitKey( 0 );
     }
-
+    printf("found:%d\n",n);
   if( out_file_name != NULL )
     export_features( out_file_name, features, n );
 

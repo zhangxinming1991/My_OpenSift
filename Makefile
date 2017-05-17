@@ -5,7 +5,7 @@ SRC_DIR	= ./src
 DOC_DIR	= ./docs
 INC_DIR	= ./include
 LIB_DIR	= ./lib
-BIN	= siftfeat match dspfeat match_num
+BIN	= siftfeat match dspfeat match_num check_pic_llegal
 
 all: $(BIN) libopensift.a docs
 

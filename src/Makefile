@@ -6,13 +6,16 @@ LIB_DIR	= ../lib
 INCL	= -I$(INC_DIR) `pkg-config --cflags opencv gtk+-2.0`
 LIBS	= -L$(LIB_DIR) -lopensift -lm `pkg-config --libs opencv gtk+-2.0`
 OBJ	= imgfeatures.o utils.o sift.o kdtree.o minpq.o xform.o
-BIN     = siftfeat match dspfeat match_num
+BIN     = siftfeat match dspfeat match_num check_pic_llegal
 
 all: $(BIN) libopensift.a
 
 libopensift.a: $(OBJ)
 	ar rc $(LIB_DIR)/$@ $(OBJ)
 	ranlib  $(LIB_DIR)/$@
+
+check_pic_llegal: libopensift.a check_pic_llegal.c
+	$(CC) $(CFLAGS) $(INCL) check_pic_llegal.c -o $(BIN_DIR)/$@ $(LIBS)
 
 siftfeat: libopensift.a siftfeat.c
 	$(CC) $(CFLAGS) $(INCL) siftfeat.c -o $(BIN_DIR)/$@ $(LIBS)

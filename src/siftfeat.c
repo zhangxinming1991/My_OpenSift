@@ -117,12 +117,16 @@ int main( int argc, char** argv )
  //    printf("i:%d,%s\n",i,temp_buf);
 
       fprintf( stderr, "Finding SIFT features...\n" );
+      printf("i:%d,before loadimage,filename:%s\n",i,temp_buf);
       img = cvLoadImage(temp_buf, 1 );
       if( ! img )
         fatal_error( "unable to load image from %s", img_file_name );
+
+      printf("load image success\n");
+
       n = _sift_features( img, &features, intvls, sigma, contr_thr, curv_thr,
                   img_dbl, descr_width, descr_hist_bins );
-      fprintf( stderr, "i:%d,Found %d features.\n", i,n );
+      fprintf( stderr, "i:%d,Found %d features.\n\n", i,n );
 
       if( display )//show the feature in the picture
         {

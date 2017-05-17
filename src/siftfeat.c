@@ -124,6 +124,8 @@ int main( int argc, char** argv )
 
       printf("load image success\n");
 
+    //  memset(features,0,sizeof(struct feature));
+
       n = _sift_features( img, &features, intvls, sigma, contr_thr, curv_thr,
                   img_dbl, descr_width, descr_hist_bins );
       fprintf( stderr, "i:%d,Found %d features.\n\n", i,n );
@@ -156,6 +158,8 @@ int main( int argc, char** argv )
 
       if( out_img_name != NULL )//save the picture with the feature
         cvSaveImage( out_img_name, img, NULL );
+
+      free(features);
   }
   /***export all pictures***/
 

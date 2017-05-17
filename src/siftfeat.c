@@ -66,8 +66,6 @@ int main( int argc, char** argv )
   struct timeval tstart,tend;
   gettimeofday(&tstart,NULL);
 
-  IplImage* img;
-  struct feature* features;
   int n = 0;
 
   //arg_parse( argc, argv );
@@ -118,14 +116,14 @@ int main( int argc, char** argv )
 
       fprintf( stderr, "Finding SIFT features...\n" );
       printf("i:%d,before loadimage,filename:%s\n",i,temp_buf);
-      img = cvLoadImage(temp_buf, 1 );
+      IplImage* img = cvLoadImage(temp_buf, 1 );
       if( ! img )
         fatal_error( "unable to load image from %s", img_file_name );
 
       printf("load image success\n");
 
     //  memset(features,0,sizeof(struct feature));
-
+      struct feature* features;
       n = _sift_features( img, &features, intvls, sigma, contr_thr, curv_thr,
                   img_dbl, descr_width, descr_hist_bins );
       fprintf( stderr, "i:%d,Found %d features.\n\n", i,n );
@@ -159,6 +157,7 @@ int main( int argc, char** argv )
       if( out_img_name != NULL )//save the picture with the feature
         cvSaveImage( out_img_name, img, NULL );
 
+      //free(img);
       free(features);
   }
   /***export all pictures***/

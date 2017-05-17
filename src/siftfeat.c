@@ -46,10 +46,9 @@ int descr_width = SIFT_DESCR_WIDTH;
 int descr_hist_bins = SIFT_DESCR_HIST_BINS;
 int display = 0;
 
-void replace_char(char *src,char match,char replace){
-    int str_len = strlen(src);
-    int i = 0;
+char *readbuf_p = NULL;
 
+void replace_char(char *src,char match,char replace){
     char *pos = src;
     while((*pos) != '\0'){
         if((*pos) == match)
@@ -75,22 +74,26 @@ int main( int argc, char** argv )
 
   char read_buf[1024];
 
-  FILE *fp = fopen("hello_world.txt","r+");
+  FILE *fp = fopen("hello_world.txt","r+");//hello_world.txt store all the filename of the pictures
   if(fp == NULL){
       printf("open filename_list failed\n");
       exit(-1);
   }
 
   memset(read_buf,0,1024);
-  fgets(read_buf,sizeof(read_buf)-1,fp);
-  printf("read:%s",read_buf);
-//  fclose(fp);
+  readbuf_p = fgets(read_buf,sizeof(read_buf)-1,fp);
+  if(readbuf_p != NULL)
+    printf("read:%s",read_buf);
+  else{
+      printf("faild to read line mes\n");
+      exit(-1);
+  }
 
   int line_num = 0;
   sscanf(read_buf,"%d",&line_num);
   printf("line num:%d\n",line_num);
 
-  char** filename_list = (char **)malloc(sizeof(char *) * line_num);
+  char** filename_list = (char **)malloc(sizeof(char *) * line_num);//store the filename of picture
 
   int i = 0;
   for(i = 0;i<line_num;i++)
@@ -98,12 +101,16 @@ int main( int argc, char** argv )
 
   for(i = 0;i<line_num;i++){
       memset(filename_list[i],0,sizeof(1024));
-      fgets(filename_list[i],1024,fp);
+      readbuf_p = fgets(filename_list[i],1024,fp);//store the filename to filename_list
+      if(readbuf_p == NULL){
+          printf("i:%d,faild to read filename_mes\n",i);
+          exit(-1);
+      }
    //   printf("%s\n",filename_list[i]);
   }
 
+  /***export all pictures***/
   char temp_buf[1024];
-
   for(i = 0;i<line_num;i++){
       memset(temp_buf,0,sizeof(temp_buf));
       sscanf(filename_list[i],"%s",temp_buf);
@@ -117,7 +124,7 @@ int main( int argc, char** argv )
                   img_dbl, descr_width, descr_hist_bins );
       fprintf( stderr, "Found %d features.\n", n );
 
-      if( display )
+      if( display )//show the feature in the picture
         {
           draw_features( img, features, n );
           display_big_img( img, temp_buf );
@@ -125,9 +132,7 @@ int main( int argc, char** argv )
         }
 
       out_file_name = temp_buf;
-
-
-      if( out_file_name != NULL ){
+      if( out_file_name != NULL ){//export the feature to the file
           char export_dirname[10];
           char export_filename[1024+10];
 
@@ -145,26 +150,30 @@ int main( int argc, char** argv )
       }
 
 
-      if( out_img_name != NULL )
+      if( out_img_name != NULL )//save the picture with the feature
         cvSaveImage( out_img_name, img, NULL );
   }
+  /***export all pictures***/
+
   gettimeofday(&tend,NULL);
   long use_time = 1000*(tend.tv_sec - tstart.tv_sec) + (tend.tv_usec - tstart.tv_usec)/1000;
 
-  char result_mes[200];
+  /***record the extract message to file***/
+  char result_mes[200];//result message
   memset(result_mes,0,200);
   sprintf(result_mes,"[%s]extract %d pic,use time:%ld ms\n",argv[1],line_num,use_time);
   printf("%s",result_mes);
 
-  char task_mes[200];
+  char task_mes[200];//result filename
   memset(task_mes,0,200);
   strcat(task_mes,"result_mes/");
   strcat(task_mes,argv[1]);
 
-  printf("task_mes:%s\n",task_mes);
+  //printf("task_mes:%s\n",task_mes);
 
   FILE *fp_result = fopen(task_mes,"w+");
   fputs(result_mes,fp_result);
+  /***record the extract message to file***/
 
   fclose(fp_result);
   fclose(fp);

@@ -15,8 +15,6 @@ int main( int argc, char** argv ){
     struct timeval tstart,tend;
     gettimeofday(&tstart,NULL);
 
-    IplImage* img;
-
     //arg_parse( argc, argv );
 
     char read_buf[1024];
@@ -71,7 +69,7 @@ int main( int argc, char** argv ){
 
         fprintf( stderr, "Finding SIFT features...\n" );
         printf("i:%d,before loadimage,filename:%s\n",i,temp_buf);
-        img = cvLoadImage(temp_buf, 1 );
+         IplImage* img = cvLoadImage(temp_buf, 1 );
         if( ! img ){
             //fatal_error( "unable to load image from %s", img_file_name );
             int flag = remove(temp_buf);

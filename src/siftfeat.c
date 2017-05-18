@@ -67,10 +67,22 @@ int main( int argc, char** argv )
   gettimeofday(&tstart,NULL);
 
   int n = 0;
+  int result_record_counter = 0;
 
   //arg_parse( argc, argv );
 
   char read_buf[1024];
+
+  FILE *fp_result;
+  char task_mes[200];//result filename
+  memset(task_mes,0,200);
+  strcat(task_mes,"result_mes/");
+  strcat(task_mes,argv[1]);
+
+  int remove_result_flag = remove(task_mes);
+  if(remove_result_flag != 0){
+      printf("failed to remove the result file\n");
+  }
 
   FILE *fp = fopen("hello_world.txt","r+");//hello_world.txt store all the filename of the pictures
   if(fp == NULL){
@@ -157,32 +169,44 @@ int main( int argc, char** argv )
       if( out_img_name != NULL )//save the picture with the feature
         cvSaveImage( out_img_name, img, NULL );
 
+      result_record_counter++;
+      if(result_record_counter == 5000){
+          result_record_counter = 0;
+          fp_result = fopen(task_mes,"a+");
+
+          gettimeofday(&tend,NULL);
+          long use_time = 1000*(tend.tv_sec - tstart.tv_sec) + (tend.tv_usec - tstart.tv_usec)/1000;
+
+          char result_mes[200];//result message
+          memset(result_mes,0,200);
+          sprintf(result_mes,"[%s]extract %d pic,use time:%ld ms\n",argv[1],line_num,use_time);
+          printf("%s",result_mes);
+
+          fclose(fp_result);
+      }
+
       //free(img);
       free(features);
   }
   /***export all pictures***/
 
-  gettimeofday(&tend,NULL);
-  long use_time = 1000*(tend.tv_sec - tstart.tv_sec) + (tend.tv_usec - tstart.tv_usec)/1000;
-
-  /***record the extract message to file***/
-  char result_mes[200];//result message
-  memset(result_mes,0,200);
-  sprintf(result_mes,"[%s]extract %d pic,use time:%ld ms\n",argv[1],line_num,use_time);
-  printf("%s",result_mes);
-
-  char task_mes[200];//result filename
-  memset(task_mes,0,200);
-  strcat(task_mes,"result_mes/");
-  strcat(task_mes,argv[1]);
-
-  //printf("task_mes:%s\n",task_mes);
-
-  FILE *fp_result = fopen(task_mes,"w+");
-  fputs(result_mes,fp_result);
   /***record the extract message to file***/
 
-  fclose(fp_result);
+  if(result_record_counter > 0){
+      gettimeofday(&tend,NULL);
+      long use_time = 1000*(tend.tv_sec - tstart.tv_sec) + (tend.tv_usec - tstart.tv_usec)/1000;
+
+      char result_mes[200];//result message
+      memset(result_mes,0,200);
+      sprintf(result_mes,"[%s]extract %d pic,use time:%ld ms\n",argv[1],line_num,use_time);
+
+      fp_result = fopen(task_mes,"a+");
+      fputs(result_mes,fp_result);
+      /***record the extract message to file***/
+
+      fclose(fp_result);
+  }
+
   fclose(fp);
   free(filename_list);
   return 0;

@@ -65,11 +65,10 @@ int main( int argc, char** argv ){
     for(i = 0;i<line_num;i++){
         memset(temp_buf,0,sizeof(temp_buf));
         sscanf(filename_list[i],"%s",temp_buf);
-   //    printf("i:%d,%s\n",i,temp_buf);
 
         fprintf( stderr, "Finding SIFT features...\n" );
         printf("i:%d,before loadimage,filename:%s\n",i,temp_buf);
-         IplImage* img = cvLoadImage(temp_buf, 1 );
+        IplImage* img = cvLoadImage(temp_buf, 1 );
         if( ! img ){
             //fatal_error( "unable to load image from %s", img_file_name );
             int flag = remove(temp_buf);
@@ -77,7 +76,7 @@ int main( int argc, char** argv ){
             if(flag != 0){
                 perror("remove");
             }
-
+            printf("remove %s success\n",temp_buf);
             continue;
         }
         printf("load image success\n");

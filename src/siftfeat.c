@@ -170,7 +170,7 @@ int main( int argc, char** argv )
         cvSaveImage( out_img_name, img, NULL );
 
       result_record_counter++;
-      if(result_record_counter == 5000){
+      if(result_record_counter == 2){
           result_record_counter = 0;
           fp_result = fopen(task_mes,"a+");
 
@@ -179,9 +179,9 @@ int main( int argc, char** argv )
 
           char result_mes[200];//result message
           memset(result_mes,0,200);
-          sprintf(result_mes,"[%s]extract %d pic,use time:%ld ms\n",argv[1],line_num,use_time);
-          printf("%s",result_mes);
-
+          sprintf(result_mes,"[%s]extract %d pic,use time:%ld ms\n",argv[1],i+1,use_time);
+          printf("write to file:%s",result_mes);
+          fputs(result_mes,fp_result);
           fclose(fp_result);
       }
 
@@ -191,6 +191,8 @@ int main( int argc, char** argv )
   /***export all pictures***/
 
   /***record the extract message to file***/
+
+  printf("result_record_counter is:%d\n",result_record_counter);
 
   if(result_record_counter > 0){
       gettimeofday(&tend,NULL);

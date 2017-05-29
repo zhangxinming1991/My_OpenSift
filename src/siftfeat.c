@@ -175,7 +175,7 @@ int main( int argc, char** argv )
         cvSaveImage( out_img_name, img, NULL );
 
       result_record_counter++;
-      if(result_record_counter == 2){
+      if(result_record_counter == 5000){
           result_record_counter = 0;
           fp_result = fopen(task_mes,"a+");
 

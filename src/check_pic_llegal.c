@@ -61,6 +61,7 @@ int main( int argc, char** argv ){
     }
 
     /***export all pictures***/
+    IplImage* img;
     char temp_buf[1024];
     for(i = 0;i<line_num;i++){
         memset(temp_buf,0,sizeof(temp_buf));
@@ -68,7 +69,7 @@ int main( int argc, char** argv ){
 
         fprintf( stderr, "Finding SIFT features...\n" );
         printf("i:%d,before loadimage,filename:%s\n",i,temp_buf);
-        IplImage* img = cvLoadImage(temp_buf, 1 );
+        img = cvLoadImage(temp_buf, 1 );
         if( ! img ){
             //fatal_error( "unable to load image from %s", img_file_name );
             int flag = remove(temp_buf);
@@ -77,8 +78,12 @@ int main( int argc, char** argv ){
                 perror("remove");
             }
             printf("remove %s success\n",temp_buf);
+            cvReleaseImage(&img);
+            img = NULL;
             continue;
         }
+        cvReleaseImage(&img);
+        img = NULL;
         printf("load image success\n");
     }
 
